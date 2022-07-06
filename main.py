@@ -61,6 +61,21 @@ def table_1(content):  # content = lines
         if re.search("Lot Started\W+:\W+", line):
             table_1_dict["Lot Started"].append(line.split(":")[1][1:])
 
+        # get PRODUCTION COUNT tanle
+        if re.search("PRODUCTION COUNT", line):
+            PRODUCTION_COUNT_FLAG = True
+
+        if PRODUCTION_COUNT_FLAG and re.search("FORM", line):
+            print(line.split(" "))
+            temp_items_list = list()
+            for i in range(len(line.split(" "))):
+                if line.split(" ")[i] != "" and line.split(" ")[i] != "ALIGN":
+                    temp_items_list.append(line.split(" ")[i])
+            for key, value in zip(TABLE_1_COL_NAMES[5:9], temp_items_list):
+                table_1_dict[key].append(value)
+
+            # close PRODUCTION COUNT Flag
+            PRODUCTION_COUNT_FLAG = False
     pass
 
 
