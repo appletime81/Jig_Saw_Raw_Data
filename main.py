@@ -69,13 +69,15 @@ def table_1(content):  # content = lines
             print(line.split(" "))
             temp_items_list = list()
             for i in range(len(line.split(" "))):
-                if line.split(" ")[i] != "" and line.split(" ")[i] != "ALIGN":
+                if line.split(" ")[i] != "" and line.split(" ")[i] != "FORM":
                     temp_items_list.append(line.split(" ")[i])
             for key, value in zip(TABLE_1_COL_NAMES[5:9], temp_items_list):
                 table_1_dict[key].append(value)
 
             # close PRODUCTION COUNT Flag
             PRODUCTION_COUNT_FLAG = False
+
+        if
     pass
 
 
