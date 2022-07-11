@@ -38,7 +38,15 @@ TABLE_1_COL_NAMES = [
     "Mold Cont",
     "Shift Cut",
 ]
+TABLE_2_COL_NAMES = [
+    "SPEC",
+    "AVERAGE(+ERROR)",
+    "MIN(+ERROR)",
+    "MAX-MIN",
+    "CPK"
+]
 table_1_dict = dict([(col_name, list()) for col_name in TABLE_1_COL_NAMES])
+table_2_dict = dict([(col_name, list()) for col_name in TABLE_2_COL_NAMES])
 
 
 def get_all_txtx_files(current_path):
@@ -199,7 +207,7 @@ def table_1(content):  # content = lines
             FORM_ALARM_ITEM_FLAG = False
 
 
-def table_2(content):-  # content = lines
+def table_2(content):  # content = lines
     pass
 
 
