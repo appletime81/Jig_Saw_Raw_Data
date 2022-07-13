@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import pandas as pd
 
 from glob import glob
@@ -208,7 +209,46 @@ def table_1(content):  # content = lines
 
 
 def table_2(content):  # content = lines
-    pass
+    global table_2_dict
+    FORM_INSPECTION_RESULT_FLAG = False
+    under_line_count = 0
+    under_line = "----------"
+
+    table_2_dict["Package"] = []
+    table_2_dict["Lot Num"] = []
+    table_2_dict["Lot Started"] = []
+    table_2_dict["Lot Finished"] = []
+
+    for line in content:
+        if re.search("Package", line):
+            table_2_dict["Package"].append(
+                [num for num in line.split(" ") if num.replace(".", "").isdigit()][0]
+            )
+
+        if re.search("Lot Num", line):
+            table_2_dict["Lot Num"].append(
+                [num for num in line.split(" ") if num.replace(".", "").isdigit()][0]
+            )
+
+        if re.search("Lot Started", line):
+            table_2_dict["Lot Started"].append(
+                [num for num in line.split(" ") if num.replace(".", "").isdigit()][0]
+            )
+
+        if re.search("Lot Finished", line):
+            table_2_dict["Lot Finished"].append(
+                [num for num in line.split(" ") if num.replace(".", "").isdigit()][0]
+            )
+
+        # find under line
+        if re.search(under_line, line):
+            under_line_count += 1
+        if under_line_count == 2:
+            FORM_INSPECTION_RESULT_FLAG = True
+            under_line_count = 0
+
+
+
 
 
 def table_3(content):  # content = lines
@@ -216,6 +256,7 @@ def table_3(content):  # content = lines
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     txt_files = get_all_txtx_files(os.getcwd())
     for txt_file in txt_files:
         # print(txt_file)
@@ -223,8 +264,14 @@ if __name__ == "__main__":
             lines = f.readlines()
         table_1(lines)
 
-    pprint(table_1_dict)
-    writer = pd.ExcelWriter("Golden_Output_Copy.xlsx", engine="xlsxwriter")
-    df = pd.DataFrame(table_1_dict)
-    df.to_excel(writer, sheet_name="Sheet1", index=False)
-    writer.save()
+    # Table 1
+    table_1_original_data = pd.read_excel("Golden_Output_Copy.xlsx", sheet_name="Table1")
+    df_1 = pd.DataFrame(table_1_dict)
+    # append to original data
+    table_1_final_data = table_1_original_data.append(df_1)
+    table_1_final_data.to_excel("Golden_Output_Copy.xlsx", sheet_name="Table1")
+
+    # Table 2
+
+
+    print("--- %s seconds ---" % (time.time() - start_time))
