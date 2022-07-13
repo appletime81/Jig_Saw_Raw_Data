@@ -6,6 +6,7 @@ import pandas as pd
 from glob import glob
 from pprint import pprint
 
+from openpyxl import load_workbook
 
 TABLE_1_COL_NAMES = [
     "Package",
@@ -40,14 +41,23 @@ TABLE_1_COL_NAMES = [
     "Shift Cut",
 ]
 TABLE_2_COL_NAMES = [
+    "Inspection_Item",
     "SPEC",
     "AVERAGE(+ERROR)",
     "MIN(+ERROR)",
+    "MAX(+ERROR)",
     "MAX-MIN",
-    "CPK"
+    "CPK",
 ]
+
 table_1_dict = dict([(col_name, list()) for col_name in TABLE_1_COL_NAMES])
-table_2_dict = dict([(col_name, list()) for col_name in TABLE_2_COL_NAMES])
+table_2_dict = dict(
+    [
+        (col_name, list())
+        for col_name in ["Package", "Lot No", "Lot Started", "Lot Finished"]
+        + TABLE_2_COL_NAMES
+    ]
+)
 
 
 def get_all_txtx_files(current_path):
@@ -62,6 +72,7 @@ def table_1(content):  # content = lines
     for line in content:
         # get Package name
         if re.search("Package\W+:\W+", line):
+            # print(line)
             table_1_dict["Package"].append(line.split(":")[1].split("\\")[1])
 
         # get Lot No
@@ -214,41 +225,50 @@ def table_2(content):  # content = lines
     under_line_count = 0
     under_line = "----------"
 
-    table_2_dict["Package"] = []
-    table_2_dict["Lot Num"] = []
-    table_2_dict["Lot Started"] = []
-    table_2_dict["Lot Finished"] = []
-
     for line in content:
-        if re.search("Package", line):
-            table_2_dict["Package"].append(
-                [num for num in line.split(" ") if num.replace(".", "").isdigit()][0]
-            )
-
-        if re.search("Lot Num", line):
-            table_2_dict["Lot Num"].append(
-                [num for num in line.split(" ") if num.replace(".", "").isdigit()][0]
-            )
-
-        if re.search("Lot Started", line):
-            table_2_dict["Lot Started"].append(
-                [num for num in line.split(" ") if num.replace(".", "").isdigit()][0]
-            )
-
-        if re.search("Lot Finished", line):
-            table_2_dict["Lot Finished"].append(
-                [num for num in line.split(" ") if num.replace(".", "").isdigit()][0]
-            )
+        item_list = []
 
         # find under line
-        if re.search(under_line, line):
-            under_line_count += 1
-        if under_line_count == 2:
+        if re.search("FORM INSPECTION RESULT", line):
             FORM_INSPECTION_RESULT_FLAG = True
-            under_line_count = 0
+        if re.search(under_line, line) and FORM_INSPECTION_RESULT_FLAG:
+            under_line_count += 1
+
+        # get Package name
+        if re.search("Package\W+:\W+", line):
+            package_name = line.split(":")[1].split("\\")[1]
+
+        # get Lot No
+        if re.search("Lot No\W+:\W+", line):
+            lot_number = line.split(":")[1].strip()
+
+        # get Lot Started
+        if re.search("Lot Started\W+:\W+", line):
+            lot_started = re.search(r"\d+/\d+/\d+ \d+:\d+:\d+", line).group()
+
+        # get Lot Finished
+        if re.search("Lot Finished\W+:\W+", line):
+            lot_finished = re.search(r"\d+/\d+/\d+ \d+:\d+:\d+", line).group()
+
+        if (
+            under_line_count == 2
+            and FORM_INSPECTION_RESULT_FLAG
+            and under_line not in line
+        ):
+            table_2_dict["Package"].append(package_name)
+            table_2_dict["Lot No"].append(lot_number)
+            table_2_dict["Lot Started"].append(lot_started)
+            table_2_dict["Lot Finished"].append(lot_finished)
+            print("Package:", package_name)
+            for i, item in enumerate(line.strip().split("  ")):
+                if item != "":
+                    item_list.append(item)
+            for key, value in zip(TABLE_2_COL_NAMES, item_list):
+                table_2_dict[key].append(value)
 
 
-
+def detect_table_3_col_names(content):
+    pass
 
 
 def table_3(content):  # content = lines
@@ -258,20 +278,63 @@ def table_3(content):  # content = lines
 if __name__ == "__main__":
     start_time = time.time()
     txt_files = get_all_txtx_files(os.getcwd())
+    file_name = "Golden_Output拷貝.xlsx"
+
     for txt_file in txt_files:
         # print(txt_file)
         with open(txt_file, "r") as f:
             lines = f.readlines()
         table_1(lines)
+        table_2(lines)
+    # pprint(table_2_dict)
+    writer = pd.ExcelWriter(
+        file_name, engine="openpyxl", mode="a", if_sheet_exists="overlay"
+    )
 
-    # Table 1
-    table_1_original_data = pd.read_excel("Golden_Output_Copy.xlsx", sheet_name="Table1")
-    df_1 = pd.DataFrame(table_1_dict)
-    # append to original data
-    table_1_final_data = table_1_original_data.append(df_1)
-    table_1_final_data.to_excel("Golden_Output_Copy.xlsx", sheet_name="Table1")
-
-    # Table 2
-
-
-    print("--- %s seconds ---" % (time.time() - start_time))
+    # detect if sheet and column name exist
+    # case1: if exist
+    if (
+        "Table1" in writer.sheets
+        and len(pd.read_excel(file_name, sheet_name="Table1").columns.tolist()) > 0
+    ):
+        # original data
+        df_original_1 = pd.read_excel(file_name, sheet_name="Table1")
+        df_original_2 = pd.read_excel(file_name, sheet_name="Table 2")
+        df_1 = pd.DataFrame(table_1_dict)
+        df_2 = pd.DataFrame(table_2_dict)
+        # append new data
+        df_1.to_excel(
+            writer,
+            header=None,
+            sheet_name="Table1",
+            index=False,
+            startrow=len(df_original_1) + 1,
+        )
+        df_2.to_excel(
+            writer,
+            header=None,
+            sheet_name="Table 2",
+            index=False,
+            startrow=len(df_original_2) + 1,
+        )
+        writer.save()
+    else:
+        # case2: if not exist
+        df_1 = pd.DataFrame(table_1_dict)
+        df_2 = pd.DataFrame(table_2_dict)
+        df_1.to_excel(
+            writer,
+            header=None,
+            sheet_name="Table1",
+            index=False,
+            startrow=1,
+        )
+        df_2.to_excel(
+            writer,
+            header=None,
+            sheet_name="Table 2",
+            index=False,
+            startrow=1,
+        )
+        writer.save()
+    print("%s seconds" % (time.time() - start_time))
