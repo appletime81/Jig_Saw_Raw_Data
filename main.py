@@ -267,8 +267,19 @@ def table_2(content):  # content = lines
                 table_2_dict[key].append(value)
 
 
-def detect_table_3_col_names(content):
-    pass
+def detect_table_3_col_names(all_txt_files):
+    col_names = []
+    for file in all_txt_files:
+        with open(file, "r") as f:
+            content = f.readlines()
+
+    for line in content:
+        if line.startswith("    NO  Inspection"):
+            col_names += [
+                item.strip() for item in line.strip().split(" ") if item.strip() != ""
+            ]
+
+    return list(set(col_names))
 
 
 def table_3(content):  # content = lines
@@ -279,6 +290,7 @@ if __name__ == "__main__":
     start_time = time.time()
     txt_files = get_all_txtx_files(os.getcwd())
     file_name = "Golden_Output拷貝.xlsx"
+    table_3_col_names = detect_table_3_col_names(all_txt_files=txt_files)
 
     for txt_file in txt_files:
         # print(txt_file)
