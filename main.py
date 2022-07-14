@@ -49,6 +49,7 @@ TABLE_2_COL_NAMES = [
     "MAX-MIN",
     "CPK",
 ]
+TABLE_3_COL_NAMES = ["Package", "Lot No", "Lot Started", "Lot Finished"]
 
 table_1_dict = dict([(col_name, list()) for col_name in TABLE_1_COL_NAMES])
 table_2_dict = dict(
@@ -58,6 +59,7 @@ table_2_dict = dict(
         + TABLE_2_COL_NAMES
     ]
 )
+table_3_dict = dict([(col_name, list()) for col_name in TABLE_3_COL_NAMES])
 
 
 def get_all_txtx_files(current_path):
@@ -259,7 +261,7 @@ def table_2(content):  # content = lines
             table_2_dict["Lot No"].append(lot_number)
             table_2_dict["Lot Started"].append(lot_started)
             table_2_dict["Lot Finished"].append(lot_finished)
-            print("Package:", package_name)
+
             for i, item in enumerate(line.strip().split("  ")):
                 if item != "":
                     item_list.append(item)
@@ -282,26 +284,84 @@ def detect_table_3_col_names(all_txt_files):
     return list(set(col_names))
 
 
-def table_3(content):  # content = lines
-    pass
+def table_3(content, all_txt_files):  # content = lines
+    # declare variables
+    global TABLE_3_COL_NAMES
+    global table_3_dict
+    tmp_col_names = None
+    TABLE_3_PART_DETECT_FLAG = False
+    under_line = "----------"
+    table_3_sub_col_names = detect_table_3_col_names(all_txt_files)
+    TABLE_3_COL_NAMES += table_3_sub_col_names
+    for col_name in TABLE_3_COL_NAMES[4:]:
+        table_3_dict[col_name] = []
+
+    # processing start
+    for line in content:
+        if re.search("    NO  Inspection", line):
+            tmp_col_names = [
+                item.strip() for item in line.strip().split(" ") if item.strip() != ""
+            ]
+            TABLE_3_PART_DETECT_FLAG = True
+
+        # get Package name
+        if re.search("Package\W+:\W+", line):
+            package_name = line.split(":")[1].split("\\")[1]
+
+        # get Lot No
+        if re.search("Lot No\W+:\W+", line):
+            lot_number = line.split(":")[1].strip()
+
+        # get Lot Started
+        if re.search("Lot Started\W+:\W+", line):
+            lot_started = re.search(r"\d+/\d+/\d+ \d+:\d+:\d+", line).group()
+
+        # get Lot Finished
+        if re.search("Lot Finished\W+:\W+", line):
+            lot_finished = re.search(r"\d+/\d+/\d+ \d+:\d+:\d+", line).group()
+
+        if TABLE_3_PART_DETECT_FLAG and under_line not in line:
+            # generate item list
+            item_list = line.strip().split(" ")
+            item_list = [item for item in item_list if item != ""]
+            if item_list:
+                time_ = item_list.pop(2)
+                item_list[1] += " " + time_
+
+                # insert data into table_3_dict
+                for key, value in zip(tmp_col_names, item_list):
+                    table_3_dict[key].append(value)
+                for key, value in zip(
+                    list(set(TABLE_3_COL_NAMES) - set(tmp_col_names)), item_list
+                ):
+                    table_3_dict[key].append(0)
+                table_3_dict["Package"].append(package_name)
+                table_3_dict["Lot No"].append(lot_number)
+                table_3_dict["Lot Started"].append(lot_started)
+                table_3_dict["Lot Finished"].append(lot_finished)
 
 
 if __name__ == "__main__":
     start_time = time.time()
     txt_files = get_all_txtx_files(os.getcwd())
-    file_name = "Golden_Output拷貝.xlsx"
+    file_name = "Golden_Output_Test.xlsx"
     table_3_col_names = detect_table_3_col_names(all_txt_files=txt_files)
 
     for txt_file in txt_files:
-        # print(txt_file)
         with open(txt_file, "r") as f:
             lines = f.readlines()
         table_1(lines)
         table_2(lines)
-    # pprint(table_2_dict)
-    writer = pd.ExcelWriter(
-        file_name, engine="openpyxl", mode="a", if_sheet_exists="overlay"
-    )
+        table_3(lines, txt_files)
+    print("%s seconds" % (time.time() - start_time))
+
+    # detect file if exist
+    if os.path.exists(file_name):
+        writer = pd.ExcelWriter(
+            file_name, engine="openpyxl", mode="a", if_sheet_exists="overlay"
+        )
+    else:
+        writer = pd.ExcelWriter(file_name, engine="openpyxl")
 
     # detect if sheet and column name exist
     # case1: if exist
@@ -311,9 +371,11 @@ if __name__ == "__main__":
     ):
         # original data
         df_original_1 = pd.read_excel(file_name, sheet_name="Table1")
-        df_original_2 = pd.read_excel(file_name, sheet_name="Table 2")
+        df_original_2 = pd.read_excel(file_name, sheet_name="Table2")
+        df_original_3 = pd.read_excel(file_name, sheet_name="Table2")
         df_1 = pd.DataFrame(table_1_dict)
         df_2 = pd.DataFrame(table_2_dict)
+        df_3 = pd.DataFrame(table_3_dict)
         # append new data
         df_1.to_excel(
             writer,
@@ -325,28 +387,39 @@ if __name__ == "__main__":
         df_2.to_excel(
             writer,
             header=None,
-            sheet_name="Table 2",
+            sheet_name="Table2",
+            index=False,
+            startrow=len(df_original_2) + 1,
+        )
+        df_3.to_excel(
+            writer,
+            header=None,
+            sheet_name="Table3",
             index=False,
             startrow=len(df_original_2) + 1,
         )
         writer.save()
     else:
         # case2: if not exist
+        # pprint(table_3_dict)
         df_1 = pd.DataFrame(table_1_dict)
         df_2 = pd.DataFrame(table_2_dict)
+        df_3 = pd.DataFrame(table_3_dict)
+
         df_1.to_excel(
             writer,
-            header=None,
             sheet_name="Table1",
             index=False,
-            startrow=1,
         )
         df_2.to_excel(
             writer,
-            header=None,
-            sheet_name="Table 2",
+            sheet_name="Table2",
             index=False,
-            startrow=1,
+        )
+        df_3.to_excel(
+            writer,
+            sheet_name="Table3",
+            index=False,
         )
         writer.save()
     print("%s seconds" % (time.time() - start_time))
