@@ -1,13 +1,9 @@
-import json
 import os
 import re
 import time
 import pandas as pd
 
 from glob import glob
-from pprint import pprint
-
-from openpyxl import load_workbook
 
 
 def get_all_txtx_files(current_path):
@@ -227,65 +223,88 @@ def detect_table_3_col_names(all_txt_files):
             col_names += [
                 item.strip() for item in line.strip().split(" ") if item.strip() != ""
             ]
-
     return list(set(col_names))
 
 
-def table_3(content, fileName):  # content = lines
+def table_3(content):  # content = lines
     # declare variables
     global TABLE_3_COL_NAMES
     global table_3_dict
-    tmp_col_names = []
+    TABLE_3_PART_DETECT_FLAG = False
     under_line = "----------"
-    tmp_table_3_dict = {
-        "Package": [],
-        "Lot_No": [],
-        "Lot_Started": [],
-        "Lot_Finished": [],
-    }
 
     # process content
-    for line in content:
+    for i, line in enumerate(content):
+        # get Package name
+        if re.search("Package\W+:\W+", line):
+            package_name = line.split(":")[1].split("\\")[1]
+
+        # get Lot No
+        if re.search("Lot No\W+:\W+", line):
+            lot_number = line.split(":")[1].strip()
+
+        # get Lot Started
+        if re.search("Lot Started\W+:\W+", line):
+            lot_started = re.search(r"\d+/\d+/\d+ \d+:\d+:\d+", line).group()
+
+        # get Lot Finished
+        if re.search("Lot Finished\W+:\W+", line):
+            lot_finished = re.search(r"\d+/\d+/\d+ \d+:\d+:\d+", line).group()
+
         if re.search("    NO  Inspection", line):
             TABLE_3_PART_DETECT_FLAG = True
             tmp_col_names = [
                 item.strip() for item in line.strip().split(" ") if item.strip() != ""
             ]
-            # 處理日期格式: (ex. ["2022-06-02", "16:15:18"] -> ["2022-06-02 16:15:18"])
-            hour_minute_second = re.search(r"\d+:\d+:\d+", line).group()
-            tmp_col_names.pop(2)
-            tmp_col_names[1] += " " + hour_minute_second
 
             if "PkgSize(X/Y)" in tmp_col_names:
                 pkg_size_x_index = tmp_col_names.index("PkgSize(X/Y)")
                 pkg_size_y_index = tmp_col_names.index("PkgSize(X/Y)") + 1
+                tmp_col_names.remove("PkgSize(X/Y)")
                 tmp_col_names.insert(pkg_size_x_index, "PkgSize_X")
                 tmp_col_names.insert(pkg_size_y_index, "PkgSize_Y")
 
-            if under_line not in line and TABLE_3_PART_DETECT_FLAG:
-                item_list = [
-                    item for item in line.strip().split("  ") if item.strip() != ""
-                ]
+
+
+        if (
+            under_line not in line
+            and "    NO  Inspection" not in line
+            and TABLE_3_PART_DETECT_FLAG
+        ):
+            # print("I am here.")
+            item_list = [
+                item for item in line.strip().split("  ") if item.strip() != ""
+            ]
+            if item_list:
+                print("line: ", i + 1)
+                print(tmp_col_names)
+                print(item_list)
+                print(line.strip())
 
                 # tmp_col_names' length and item_list's length if same
-                if len(tmp_col_names) < len(item_list):  # 代表該Item欄位出現的狀態為兩個字串(ex. "Shift Cut")
+                if len(tmp_col_names) < len(
+                    item_list
+                ):  # 代表該Item欄位出現的狀態為兩個字串(ex. "Shift Cut")
                     item_list[5] += " " + item_list.pop(6)
 
                 for col_name in TABLE_3_COL_NAMES:
                     if col_name in tmp_col_names:
-                        tmp_table_3_dict[col_name].append(item_list[tmp_col_names.index(col_name)])
+                        table_3_dict[col_name].append(
+                            item_list[tmp_col_names.index(col_name)]
+                        )
                     else:
-                        tmp_table_3_dict[col_name].append(0)
+                        table_3_dict[col_name].append(0)
 
-
+                table_3_dict["Package"].append(package_name)
+                table_3_dict["Lot_No"].append(lot_number)
+                table_3_dict["Lot_Started"].append(lot_started)
+                table_3_dict["Lot_Finished"].append(lot_finished)
 
 
 if __name__ == "__main__":
     start_time = time.time()
     txt_files = get_all_txtx_files(os.getcwd())
     file_name = "Golden_Output_Test.xlsx"
-    table_3_col_names = detect_table_3_col_names(all_txt_files=txt_files)
-    IF_SPLIT_SAVE_TABLE_3_FLAG = False
 
     TABLE_1_COL_NAMES = [
         "Package",
@@ -328,13 +347,16 @@ if __name__ == "__main__":
         "MAX-MIN",
         "CPK",
     ]
+    # ------------------------- 組合Table 3的欄位名稱 -------------------------
     TABLE_3_COL_NAMES = ["Package", "Lot_No", "Lot_Started", "Lot_Finished"]
     table_3_sub_col_names = detect_table_3_col_names(all_txt_files=txt_files)
     TABLE_3_COL_NAMES.extend(table_3_sub_col_names)
     if "PkgSize(X/Y)" in TABLE_3_COL_NAMES:
         TABLE_3_COL_NAMES.remove("PkgSize(X/Y)")
         TABLE_3_COL_NAMES.extend(["PkgSize_X", "PkgSize_Y"])
+    # -----------------------------------------------------------------------
 
+    # ------------------------- 給定table1到table3的所有dictionary ------------
     table_1_dict = dict([(col_name, list()) for col_name in TABLE_1_COL_NAMES])
     table_2_dict = dict(
         [
@@ -344,31 +366,39 @@ if __name__ == "__main__":
         ]
     )
     table_3_dict = dict([(col_name, list()) for col_name in TABLE_3_COL_NAMES])
+    # -----------------------------------------------------------------------
 
     for txt_file in txt_files:
         with open(txt_file, "r") as f:
             lines = f.readlines()
-        # table_1(lines)
-        # table_2(lines)
-        # table_3(lines, txt_file)
+        table_1(lines)
+        table_2(lines)
+        print("fileName =", txt_file)
+        table_3(lines)
 
     df_1 = pd.DataFrame(table_1_dict)
     df_2 = pd.DataFrame(table_2_dict)
-    # df_3 = pd.DataFrame(table_3_dict)
+    df_3 = pd.DataFrame(table_3_dict)
 
     df_1.to_excel(
-        "Golden_Output_Table_1.xlsx",
+        excel_writer="Golden_Output_Table_1.xlsx",
         sheet_name="Table1",
         index=False,
     )
     df_2.to_excel(
-        "Golden_Output_Table_2.xlsx",
+        excel_writer="Golden_Output_Table_2.xlsx",
         sheet_name="Table2",
+        index=False,
+    )
+
+    df_3.to_excel(
+        excel_writer="Golden_Output_Table_3.xlsx",
+        sheet_name="Table3",
         index=False,
     )
 
     # remove all txt files
     # for txt_file in txt_files:
-    #     os.remove(txt_file)
+        # os.remove(txt_file)
 
     print("%s seconds" % (time.time() - start_time))
