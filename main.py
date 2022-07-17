@@ -22,7 +22,6 @@ def table_1(content):  # content = lines
     for line in content:
         # get Package name
         if re.search("Package\W+:\W+", line):
-            # print(line)
             table_1_dict["Package"].append(line.split(":")[1].split("\\")[1])
 
         # get Lot No
@@ -236,12 +235,10 @@ def table_3(content, fileName):  # content = lines
     # declare variables
     global TABLE_3_COL_NAMES
     global table_3_dict
-    global IF_SPLIT_SAVE_TABLE_3_FLAG
-
-    tmp_col_names = None
-    IF_SPLIT_SAVE_TABLE_3_FLAG = False
+    tmp_col_names = []
     TABLE_3_PART_DETECT_FLAG = False
     under_line = "----------"
+    under_line_count = 0
     tmp_table_3_dict = {
         "Package": [],
         "Lot_No": [],
@@ -249,104 +246,23 @@ def table_3(content, fileName):  # content = lines
         "Lot_Finished": [],
     }
 
-    # processing start
-    print("----------------------------------")
-    print(fileName)
+    # process content
     for line in content:
         if re.search("    NO  Inspection", line):
+            TABLE_3_PART_DETECT_FLAG = True
             tmp_col_names = [
                 item.strip() for item in line.strip().split(" ") if item.strip() != ""
             ]
-            TABLE_3_PART_DETECT_FLAG = True
+            if "PkgSize(X/Y)" in tmp_col_names:
+                pkg_size_x_index = tmp_col_names.index("PkgSize(X/Y)")
+                pkg_size_y_index = tmp_col_names.index("PkgSize(X/Y)") + 1
+                tmp_col_names.insert(pkg_size_x_index, "PkgSize_X")
+                tmp_col_names.insert(pkg_size_y_index, "PkgSize_Y")
 
-        # get Package name
-        if re.search("Package\W+:\W+", line):
-            package_name = line.split(":")[1].split("\\")[1]
-
-        # get Lot No
-        if re.search("Lot No\W+:\W+", line):
-            lot_number = line.split(":")[1].strip()
-
-        # get Lot Started
-        if re.search("Lot Started\W+:\W+", line):
-            lot_started = re.search(r"\d+/\d+/\d+ \d+:\d+:\d+", line).group()
-
-        # get Lot Finished
-        if re.search("Lot Finished\W+:\W+", line):
-            lot_finished = re.search(r"\d+/\d+/\d+ \d+:\d+:\d+", line).group()
-
-        if (
-            TABLE_3_PART_DETECT_FLAG
-            and under_line not in line
-            and "    NO  Inspection" not in line
-            and len(line) != 1
-        ):
-            # generate item list
-            item_list = line.strip().split(" ")
-            item_list = [item for item in item_list if item != ""]
-            if item_list:
-                time_ = item_list.pop(2)
-                item_list[1] += " " + time_
-
-                if len(tmp_col_names) == len(item_list):
-                    print(abs(len(tmp_col_names) - len(item_list)))
-                    for key in TABLE_3_COL_NAMES[4:]:
-                        if key in tmp_col_names:
-                            table_3_dict[key].append(
-                                item_list[tmp_col_names.index(key)]
-                            )
-                        else:
-                            table_3_dict[key].append(0)
-                    table_3_dict["Package"].append(package_name)
-                    table_3_dict["Lot_No"].append(lot_number)
-                    table_3_dict["Lot_Started"].append(lot_started)
-                    table_3_dict["Lot_Finished"].append(lot_finished)
-                elif len(tmp_col_names) < len(item_list):
-                    print(abs(len(tmp_col_names) - len(item_list)))
-
-                    IF_SPLIT_SAVE_TABLE_3_FLAG = True
-                    if "Undefined" not in tmp_col_names:
-                        tmp_col_names.append("Undefined")
-
-                    # check dict if empty
-                    if len(tmp_table_3_dict.keys()) == 4:
-                        for col_name in tmp_col_names:
-                            tmp_table_3_dict[col_name] = []
-
-                    # insert data
-                    for k, v in zip(tmp_col_names, item_list):
-                        tmp_table_3_dict[k].append(v)
-
-                    tmp_table_3_dict["Package"].append(package_name)
-                    tmp_table_3_dict["Lot_No"].append(lot_number)
-                    tmp_table_3_dict["Lot_Started"].append(lot_started)
-                    tmp_table_3_dict["Lot_Finished"].append(lot_finished)
-                elif len(tmp_col_names) > len(item_list):
-                    print(abs(len(tmp_col_names) - len(item_list)))
-                    IF_SPLIT_SAVE_TABLE_3_FLAG = True
-                    item_list.append(0)
-
-                    # check dict if empty
-                    if len(tmp_table_3_dict.keys()) == 4:
-                        for col_name in tmp_col_names:
-                            tmp_table_3_dict[col_name] = []
-
-                    # insert data
-                    for k, v in zip(tmp_col_names, item_list):
-                        tmp_table_3_dict[k].append(v)
-
-                    tmp_table_3_dict["Package"].append(package_name)
-                    tmp_table_3_dict["Lot_No"].append(lot_number)
-                    tmp_table_3_dict["Lot_Started"].append(lot_started)
-                    tmp_table_3_dict["Lot_Finished"].append(lot_finished)
-
-    if IF_SPLIT_SAVE_TABLE_3_FLAG:
-        # print("---------------------------------")
-        # for k, v in tmp_table_3_dict.items():
-        #     print(k, len(v))
-
-        tmp_table_3_df = pd.DataFrame(tmp_table_3_dict)
-        tmp_table_3_df.to_excel(f"{tmp_table_3_dict.get('Lot_No')[0]}.xlsx")
+            if under_line not in line and TABLE_3_PART_DETECT_FLAG:
+                item_list = [
+                    item for item in line.strip().split("  ") if item.strip() != ""
+                ]
 
 
 if __name__ == "__main__":
@@ -399,7 +315,10 @@ if __name__ == "__main__":
     ]
     TABLE_3_COL_NAMES = ["Package", "Lot_No", "Lot_Started", "Lot_Finished"]
     table_3_sub_col_names = detect_table_3_col_names(all_txt_files=txt_files)
-    TABLE_3_COL_NAMES += table_3_sub_col_names
+    TABLE_3_COL_NAMES.extend(table_3_sub_col_names)
+    if "PkgSize(X/Y)" in TABLE_3_COL_NAMES:
+        TABLE_3_COL_NAMES.remove("PkgSize(X/Y)")
+        TABLE_3_COL_NAMES.extend(["PkgSize_X", "PkgSize_Y"])
 
     table_1_dict = dict([(col_name, list()) for col_name in TABLE_1_COL_NAMES])
     table_2_dict = dict(
@@ -414,14 +333,10 @@ if __name__ == "__main__":
     for txt_file in txt_files:
         with open(txt_file, "r") as f:
             lines = f.readlines()
-        # print("------------------------------------")
-        # print(txt_file)
-        table_1(lines)
-        table_2(lines)
+        # table_1(lines)
+        # table_2(lines)
         # table_3(lines, txt_file)
 
-    for k, v in table_1_dict.items():
-        print(k, len(v))
     df_1 = pd.DataFrame(table_1_dict)
     df_2 = pd.DataFrame(table_2_dict)
     # df_3 = pd.DataFrame(table_3_dict)
@@ -438,7 +353,7 @@ if __name__ == "__main__":
     )
 
     # remove all txt files
-    for txt_file in txt_files:
-        os.remove(txt_file)
+    # for txt_file in txt_files:
+    #     os.remove(txt_file)
 
     print("%s seconds" % (time.time() - start_time))
