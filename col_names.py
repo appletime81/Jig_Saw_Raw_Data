@@ -7,7 +7,6 @@ a = [
     "Item",
     "PkgSize_X",
     "PkgSize_Y",
-    "PkgSize(X/Y)",
     "ShiftCutT_F",
     "ShiftCutT_L",
     "ShiftCutB_F",

@@ -1,6 +1,8 @@
+import copy
 import os
 import re
 import time
+import json
 import pandas as pd
 
 from glob import glob
@@ -226,7 +228,7 @@ def detect_table_3_col_names(all_txt_files):
     return list(set(col_names))
 
 
-def table_3(content):  # content = lines
+def table_3(content, file_name):  # content = lines
     # declare variables
     global TABLE_3_COL_NAMES
     global table_3_dict
@@ -264,8 +266,6 @@ def table_3(content):  # content = lines
                 tmp_col_names.insert(pkg_size_x_index, "PkgSize_X")
                 tmp_col_names.insert(pkg_size_y_index, "PkgSize_Y")
 
-
-
         if (
             under_line not in line
             and "    NO  Inspection" not in line
@@ -276,36 +276,35 @@ def table_3(content):  # content = lines
                 item for item in line.strip().split("  ") if item.strip() != ""
             ]
             if item_list:
-                print("line: ", i + 1)
-                print(tmp_col_names)
-                print(item_list)
-                print(line.strip())
-
                 # tmp_col_names' length and item_list's length if same
                 if len(tmp_col_names) < len(
                     item_list
                 ):  # 代表該Item欄位出現的狀態為兩個字串(ex. "Shift Cut")
                     item_list[5] += " " + item_list.pop(6)
 
-                for col_name in TABLE_3_COL_NAMES:
-                    if col_name in tmp_col_names:
-                        table_3_dict[col_name].append(
-                            item_list[tmp_col_names.index(col_name)]
-                        )
-                    else:
-                        table_3_dict[col_name].append(0)
-
-                table_3_dict["Package"].append(package_name)
-                table_3_dict["Lot_No"].append(lot_number)
-                table_3_dict["Lot_Started"].append(lot_started)
-                table_3_dict["Lot_Finished"].append(lot_finished)
+                if len(tmp_col_names) == len(item_list):
+                    for col_name in TABLE_3_COL_NAMES[4:]:
+                        if col_name in tmp_col_names:
+                            table_3_dict[col_name].append(
+                                item_list[tmp_col_names.index(col_name)]
+                            )
+                        else:
+                            table_3_dict[col_name].append("0")
+                    table_3_dict["Package"].append(package_name)
+                    table_3_dict["Lot_No"].append(lot_number)
+                    table_3_dict["Lot_Started"].append(lot_started)
+                    table_3_dict["Lot_Finished"].append(lot_finished)
+                else:
+                    if file_name not in no_value_dict:
+                        no_value_dict[file_name] = []
+                    no_value_dict[file_name].append(f"第{i + 1}行")
 
 
 if __name__ == "__main__":
     start_time = time.time()
     txt_files = get_all_txtx_files(os.getcwd())
     file_name = "Golden_Output_Test.xlsx"
-
+    no_value_dict = dict()
     TABLE_1_COL_NAMES = [
         "Package",
         "Lot_No",
@@ -373,18 +372,40 @@ if __name__ == "__main__":
             lines = f.readlines()
         table_1(lines)
         table_2(lines)
-        print("fileName =", txt_file)
-        table_3(lines)
+        table_3(lines, txt_file)
 
+    for k, v in table_3_dict.items():
+        print(k, len(v))
     df_1 = pd.DataFrame(table_1_dict)
     df_2 = pd.DataFrame(table_2_dict)
-    df_3 = pd.DataFrame(table_3_dict)
+
+    # 如果Table3行數超過1048576，則分成多個Excel檔
+    if len(table_3_dict["Package"]) > 1048576:
+        part_numbers = (
+            int(len(table_3_dict["Package"]) / 1048576)
+            if not len(table_3_dict["Package"]) % 1048576
+            else int(len(table_3_dict["Package"]) / 1048576) + 1
+        )
+        part_numbers_list = list(range(part_numbers))
+    for part_number in part_numbers_list:
+        table_3_dict_copy = copy.deepcopy(table_3_dict)
+        for key, value in table_3_dict_copy.items():
+            table_3_dict_copy[key] = value[
+                part_number * 1048576 : (part_number + 1) * 1048576
+            ]
+        df_3 = pd.DataFrame(table_3_dict_copy)
+        df_3.to_excel(
+            excel_writer=f"Golden_Output_Table_3_part{part_number + 1}.xlsx",
+            sheet_name="Table3",
+            index=False,
+        )
 
     df_1.to_excel(
         excel_writer="Golden_Output_Table_1.xlsx",
         sheet_name="Table1",
         index=False,
     )
+
     df_2.to_excel(
         excel_writer="Golden_Output_Table_2.xlsx",
         sheet_name="Table2",
@@ -398,7 +419,11 @@ if __name__ == "__main__":
     )
 
     # remove all txt files
-    # for txt_file in txt_files:
-        # os.remove(txt_file)
+    for txt_file in txt_files:
+        os.remove(txt_file)
+
+    # save dict to json
+    with open("no_value_dict.json", "w") as f:
+        json.dump(no_value_dict, f, indent=4)
 
     print("%s seconds" % (time.time() - start_time))
