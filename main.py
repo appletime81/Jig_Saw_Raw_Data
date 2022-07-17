@@ -236,9 +236,7 @@ def table_3(content, fileName):  # content = lines
     global TABLE_3_COL_NAMES
     global table_3_dict
     tmp_col_names = []
-    TABLE_3_PART_DETECT_FLAG = False
     under_line = "----------"
-    under_line_count = 0
     tmp_table_3_dict = {
         "Package": [],
         "Lot_No": [],
@@ -253,6 +251,11 @@ def table_3(content, fileName):  # content = lines
             tmp_col_names = [
                 item.strip() for item in line.strip().split(" ") if item.strip() != ""
             ]
+            # 處理日期格式: (ex. ["2022-06-02", "16:15:18"] -> ["2022-06-02 16:15:18"])
+            hour_minute_second = re.search(r"\d+:\d+:\d+", line).group()
+            tmp_col_names.pop(2)
+            tmp_col_names[1] += " " + hour_minute_second
+
             if "PkgSize(X/Y)" in tmp_col_names:
                 pkg_size_x_index = tmp_col_names.index("PkgSize(X/Y)")
                 pkg_size_y_index = tmp_col_names.index("PkgSize(X/Y)") + 1
@@ -263,6 +266,18 @@ def table_3(content, fileName):  # content = lines
                 item_list = [
                     item for item in line.strip().split("  ") if item.strip() != ""
                 ]
+
+                # tmp_col_names' length and item_list's length if same
+                if len(tmp_col_names) < len(item_list):  # 代表該Item欄位出現的狀態為兩個字串(ex. "Shift Cut")
+                    item_list[5] += " " + item_list.pop(6)
+
+                for col_name in TABLE_3_COL_NAMES:
+                    if col_name in tmp_col_names:
+                        tmp_table_3_dict[col_name].append(item_list[tmp_col_names.index(col_name)])
+                    else:
+                        tmp_table_3_dict[col_name].append(0)
+
+
 
 
 if __name__ == "__main__":
