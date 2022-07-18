@@ -1,8 +1,9 @@
-import copy
 import os
 import re
 import time
 import json
+import copy
+import collections
 import pandas as pd
 
 from glob import glob
@@ -235,8 +236,11 @@ def table_3(content, file_name):  # content = lines
     TABLE_3_PART_DETECT_FLAG = False
     under_line = "----------"
 
+    print("-----------------------------------------------------")
+    print(file_name)
+
     # process content
-    for i, line in enumerate(content):
+    for line_index, line in enumerate(content):
         # get Package name
         if re.search("Package\W+:\W+", line):
             package_name = line.split(":")[1].split("\\")[1]
@@ -270,34 +274,59 @@ def table_3(content, file_name):  # content = lines
             under_line not in line
             and "    NO  Inspection" not in line
             and TABLE_3_PART_DETECT_FLAG
+            and len(line) > 1
         ):
-            # print("I am here.")
-            item_list = [
-                item for item in line.strip().split("  ") if item.strip() != ""
-            ]
-            if item_list:
-                # tmp_col_names' length and item_list's length if same
-                if len(tmp_col_names) < len(
-                    item_list
-                ):  # 代表該Item欄位出現的狀態為兩個字串(ex. "Shift Cut")
-                    item_list[5] += " " + item_list.pop(6)
 
-                if len(tmp_col_names) == len(item_list):
-                    for col_name in TABLE_3_COL_NAMES[4:]:
-                        if col_name in tmp_col_names:
-                            table_3_dict[col_name].append(
-                                item_list[tmp_col_names.index(col_name)]
-                            )
-                        else:
-                            table_3_dict[col_name].append("0")
-                    table_3_dict["Package"].append(package_name)
-                    table_3_dict["Lot_No"].append(lot_number)
-                    table_3_dict["Lot_Started"].append(lot_started)
-                    table_3_dict["Lot_Finished"].append(lot_finished)
-                else:
-                    if file_name not in no_value_dict:
-                        no_value_dict[file_name] = []
-                    no_value_dict[file_name].append(f"第{i + 1}行")
+            # 處理欄位名稱("NO", "Inspection", "DVNo", "XPos", "YPos", "Item")
+            tmp_line = line[:72].strip()
+            first_6_col_item_list = [x for x in tmp_line.split(" ") if x != ""]
+            if len(first_6_col_item_list) == 8:
+                first_6_col_item_list[1] += " " + first_6_col_item_list.pop(2)
+                first_6_col_item_list[5] += " " + first_6_col_item_list.pop(6)
+            if len(first_6_col_item_list) == 7:
+                first_6_col_item_list[1] += " " + first_6_col_item_list.pop(2)
+            for key, value in zip(
+                ["NO", "Inspection", "DVNo", "XPos", "YPos", "Item"],
+                first_6_col_item_list,
+            ):
+                table_3_dict[key].append(value)
+
+            table_3_dict["Package"].append(package_name)
+            table_3_dict["Lot_No"].append(lot_number)
+            table_3_dict["Lot_Started"].append(lot_started)
+            table_3_dict["Lot_Finished"].append(lot_finished)
+
+            # 處理剩下的欄位
+            tmp_line = line[72:]
+            tmp_line_list = tmp_line.split("    ")
+            final_tmp_list = []
+            record_empty_str = []
+            for i in range(len(tmp_line_list)):
+                if tmp_line_list[i] == "":
+                    record_empty_str.append("")
+                if len(record_empty_str) % 2 == 0 and len(record_empty_str) != 0:
+                    for i in range(int(len(record_empty_str) / 2)):
+                        final_tmp_list.append("0")
+                    record_empty_str = []
+                if tmp_line_list[i] != "":
+                    final_tmp_list.append(tmp_line_list[i].strip())
+            if len(final_tmp_list) < len(tmp_col_names[6:]):
+                final_tmp_list.append("0")
+
+            # 組成dict
+            if len(final_tmp_list) != len(tmp_col_names[6:]):
+                print(f"line {line_index + 1} have problem")
+                print(tmp_col_names[6:])
+                print(final_tmp_list)
+
+            for key, value in zip(tmp_col_names[6:], final_tmp_list):
+                table_3_dict[key].append(value)
+            for col_name in list(
+                set(TABLE_3_COL_NAMES[4:])
+                - set(tmp_col_names[6:])
+                - {"NO", "Inspection", "DVNo", "XPos", "YPos", "Item"}
+            ):
+                table_3_dict[col_name].append("0")
 
 
 if __name__ == "__main__":
@@ -349,6 +378,9 @@ if __name__ == "__main__":
     # ------------------------- 組合Table 3的欄位名稱 -------------------------
     TABLE_3_COL_NAMES = ["Package", "Lot_No", "Lot_Started", "Lot_Finished"]
     table_3_sub_col_names = detect_table_3_col_names(all_txt_files=txt_files)
+    # sort table_3_sub_col_names by first alphabet
+    table_3_sub_col_names.sort(key=lambda x: x[0])
+
     TABLE_3_COL_NAMES.extend(table_3_sub_col_names)
     if "PkgSize(X/Y)" in TABLE_3_COL_NAMES:
         TABLE_3_COL_NAMES.remove("PkgSize(X/Y)")
@@ -379,6 +411,16 @@ if __name__ == "__main__":
     df_1 = pd.DataFrame(table_1_dict)
     df_2 = pd.DataFrame(table_2_dict)
 
+    # 排序table_3_dict
+    tmp_table_3_dict = copy.deepcopy(table_3_dict)
+    first_part_table_3_dict = {}
+    for col_name in TABLE_3_COL_NAMES[:4]:
+        first_part_table_3_dict[col_name] = tmp_table_3_dict.pop(col_name)
+    tmp_table_3_dict = collections.OrderedDict(
+        sorted(tmp_table_3_dict.items(), key=lambda x: x[0])
+    )
+    table_3_dict = {**first_part_table_3_dict, **tmp_table_3_dict}
+
     # 如果Table3行數超過1048576，則分成多個Excel檔
     if len(table_3_dict["Package"]) > 1048576:
         part_numbers = (
@@ -387,6 +429,13 @@ if __name__ == "__main__":
             else int(len(table_3_dict["Package"]) / 1048576) + 1
         )
         part_numbers_list = list(range(part_numbers))
+    else:
+        df_3 = pd.DataFrame(table_3_dict)
+        df_3.to_excel(
+            excel_writer=f"Golden_Output_Table_3_part.xlsx",
+            sheet_name="Table3",
+            index=False,
+        )
     for part_number in part_numbers_list:
         table_3_dict_copy = copy.deepcopy(table_3_dict)
         for key, value in table_3_dict_copy.items():
@@ -412,15 +461,9 @@ if __name__ == "__main__":
         index=False,
     )
 
-    df_3.to_excel(
-        excel_writer="Golden_Output_Table_3.xlsx",
-        sheet_name="Table3",
-        index=False,
-    )
-
     # remove all txt files
-    for txt_file in txt_files:
-        os.remove(txt_file)
+    # for txt_file in txt_files:
+    #     os.remove(txt_file)
 
     # save dict to json
     with open("no_value_dict.json", "w") as f:
