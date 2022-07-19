@@ -236,8 +236,8 @@ def table_3(content, file_name):  # content = lines
     TABLE_3_PART_DETECT_FLAG = False
     under_line = "----------"
 
-    print("-----------------------------------------------------")
-    print(file_name)
+    # print("-----------------------------------------------------")
+    # print(file_name)
 
     # process content
     for line_index, line in enumerate(content):
@@ -276,6 +276,10 @@ def table_3(content, file_name):  # content = lines
             and TABLE_3_PART_DETECT_FLAG
             and len(line) > 1
         ):
+            # if re.search("-\d+\.\d+", line):
+            #     print(file_name)
+            #     print(line_index + 1)
+            #     print(line.strip())
 
             # 處理欄位名稱("NO", "Inspection", "DVNo", "XPos", "YPos", "Item")
             tmp_line = line[:72].strip()
@@ -305,7 +309,7 @@ def table_3(content, file_name):  # content = lines
                 if tmp_line_list[i] == "":
                     record_empty_str.append("")
                 if len(record_empty_str) % 2 == 0 and len(record_empty_str) != 0:
-                    for i in range(int(len(record_empty_str) / 2)):
+                    for _ in range(int(len(record_empty_str) / 2)):
                         final_tmp_list.append("0")
                     record_empty_str = []
                 if tmp_line_list[i] != "":
@@ -314,10 +318,10 @@ def table_3(content, file_name):  # content = lines
                 final_tmp_list.append("0")
 
             # 組成dict
-            if len(final_tmp_list) != len(tmp_col_names[6:]):
-                print(f"line {line_index + 1} have problem")
-                print(tmp_col_names[6:])
-                print(final_tmp_list)
+            # if len(final_tmp_list) != len(tmp_col_names[6:]):
+            #     print(f"line {line_index + 1} have problem")
+            #     print(tmp_col_names[6:])
+            #     print(final_tmp_list)
 
             for key, value in zip(tmp_col_names[6:], final_tmp_list):
                 table_3_dict[key].append(value)
@@ -327,6 +331,24 @@ def table_3(content, file_name):  # content = lines
                 - {"NO", "Inspection", "DVNo", "XPos", "YPos", "Item"}
             ):
                 table_3_dict[col_name].append("0")
+            if len(final_tmp_list) != len(tmp_col_names[6:]) and re.search("-\d+\.\d+", line):
+                print("-----------------------------------------------------")
+                print(file_name)
+                print("line {} have problem".format(line_index + 1))
+                print(tmp_col_names[6:])
+                print(tmp_line.split("    "))
+                print(final_tmp_list)
+                print(len(final_tmp_list), len(tmp_col_names[6:]))
+            elif re.search("-\d+\.\d+", line):
+                print("-----------------------------------------------------")
+                print(file_name)
+                print("line {} have problem".format(line_index + 1))
+                print(tmp_col_names[6:])
+                print(tmp_line.split("    "))
+                print(final_tmp_list)
+                print(len(final_tmp_list), len(tmp_col_names[6:]))
+
+
 
 
 if __name__ == "__main__":
@@ -402,12 +424,12 @@ if __name__ == "__main__":
     for txt_file in txt_files:
         with open(txt_file, "r") as f:
             lines = f.readlines()
+        table_3(lines, txt_file)
         table_1(lines)
         table_2(lines)
-        table_3(lines, txt_file)
 
-    for k, v in table_3_dict.items():
-        print(k, len(v))
+
+
     df_1 = pd.DataFrame(table_1_dict)
     df_2 = pd.DataFrame(table_2_dict)
 
@@ -420,6 +442,8 @@ if __name__ == "__main__":
         sorted(tmp_table_3_dict.items(), key=lambda x: x[0])
     )
     table_3_dict = {**first_part_table_3_dict, **tmp_table_3_dict}
+    for k, v in table_3_dict.items():
+        print(k, len(v))
 
     # 如果Table3行數超過1048576，則分成多個Excel檔
     if len(table_3_dict["Package"]) > 1048576:
@@ -429,6 +453,7 @@ if __name__ == "__main__":
             else int(len(table_3_dict["Package"]) / 1048576) + 1
         )
         part_numbers_list = list(range(part_numbers))
+        print(part_numbers_list)
     else:
         df_3 = pd.DataFrame(table_3_dict)
         df_3.to_excel(
@@ -436,6 +461,7 @@ if __name__ == "__main__":
             sheet_name="Table3",
             index=False,
         )
+
     for part_number in part_numbers_list:
         table_3_dict_copy = copy.deepcopy(table_3_dict)
         for key, value in table_3_dict_copy.items():
@@ -443,11 +469,13 @@ if __name__ == "__main__":
                 part_number * 1048576 : (part_number + 1) * 1048576
             ]
         df_3 = pd.DataFrame(table_3_dict_copy)
+        print(f"Processing part {part_number + 1}")
         df_3.to_excel(
             excel_writer=f"Golden_Output_Table_3_part{part_number + 1}.xlsx",
             sheet_name="Table3",
             index=False,
         )
+        print(f"Processing part {part_number + 1} done !!!")
 
     df_1.to_excel(
         excel_writer="Golden_Output_Table_1.xlsx",

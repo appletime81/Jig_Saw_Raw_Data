@@ -20,14 +20,15 @@ a_line_list = a_line.split("    ")
 tmp_a_line_list = []
 record_empty_str = []
 for i in range(len(a_line_list)):
+    print("1. ", a_line_list[i])
     if a_line_list[i] == "":
         record_empty_str.append("")
     if len(record_empty_str) % 2 == 0:
-        for i in range(int(len(record_empty_str) / 2)):
+        for _ in range(int(len(record_empty_str) / 2)):
             tmp_a_line_list.append("0")
         record_empty_str = []
     if a_line_list[i] != "":
-        print(a_line_list[i])
+        print("2.", a_line_list[i])
         tmp_a_line_list.append(a_line_list[i])
 print(a_line_list)
 print(tmp_a_line_list)

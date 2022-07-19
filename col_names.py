@@ -1,30 +1,33 @@
-a = [
-    "NO",
-    "Inspection",
-    "DVNo",
-    "XPos",
-    "YPos",
-    "Item",
-    "PkgSize_X",
-    "PkgSize_Y",
-    "ShiftCutT_F",
-    "ShiftCutT_L",
-    "ShiftCutB_F",
-    "ShiftCutB_L",
-    "Intru_Protrusion_1_0",
-    "Intru_Protrusion_1_1",
-    "Intru_Protrusion_1_2",
-    "Intru_Protrusion_1_3",
-    "Intru_Protrusion_3_0",
-    "Intru_Protrusion_3_1",
-    "Intru_Protrusion_3_2",
-    "Intru_Protrusion_3_3",
-    "Bent_1_0",
-    "Bent_1_1",
-    "Bent_1_2",
-    "Bent_1_3",
-    "Bent_3_0",
-    "Bent_3_1",
-    "Bent_3_2",
-    "Bent_3_3",
-]
+PkgSize(X/Y)
+ShiftCutT_F
+ShiftCutT_L
+ShiftCutB_F
+ShiftCutB_L
+Intru_Protrusion_1_0
+Intru_Protrusion_1_1
+Intru_Protrusion_1_2
+Intru_Protrusion_1_3
+Intru_Protrusion_1_4
+Intru_Protrusion_1_5
+Intru_Protrusion_1_6
+Intru_Protrusion_3_0
+Intru_Protrusion_3_1
+Intru_Protrusion_3_2
+Intru_Protrusion_3_3
+Intru_Protrusion_3_4
+Intru_Protrusion_3_5
+Intru_Protrusion_3_6
+Bent_1_0
+Bent_1_1
+Bent_1_2
+Bent_1_3
+Bent_1_4
+Bent_1_5
+Bent_1_6
+Bent_3_0
+Bent_3_1
+Bent_3_2
+Bent_3_3
+Bent_3_4
+Bent_3_5
+Bent_3_6
