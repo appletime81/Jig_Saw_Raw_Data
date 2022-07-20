@@ -1,35 +1,12 @@
+import re
 from pprint import pprint
 
-
-with open("2022-06-25_20;38;57.txt", "r") as f:
+with open("2022-06-25_21;28;21.txt", "r") as f:
     lines = f.readlines()
 
-# a_line = lines[20110][:72].strip()
-# a_line_list = [x for x in a_line.split(" ") if x != ""]
-# print(a_line_list)
-#
-# if len(a_line_list) == 8:
-#     a_line_list[1] += " " + a_line_list.pop(2)
-#     a_line_list[5] += " " + a_line_list.pop(6)
-# if len(a_line_list) == 7:
-#     a_line_list[1] += " " + a_line_list.pop(2)
-# print(a_line_list)
-# 20111
-a_line = lines[20110][72:]
-a_line_list = a_line.split("    ")
-tmp_a_line_list = []
-record_empty_str = []
-for i in range(len(a_line_list)):
-    print("1. ", a_line_list[i])
-    if a_line_list[i] == "":
-        record_empty_str.append("")
-    if len(record_empty_str) % 2 == 0:
-        for _ in range(int(len(record_empty_str) / 2)):
-            tmp_a_line_list.append("0")
-        record_empty_str = []
-    if a_line_list[i] != "":
-        print("2.", a_line_list[i])
-        tmp_a_line_list.append(a_line_list[i])
-print(a_line_list)
-print(tmp_a_line_list)
-print(len(tmp_a_line_list))
+tmp_line_start_index = 72
+tmp_line = "  10473  2022-06-25 22:13:57   17   10    15    Terminal Dimension      4.890    3.584    0.526             0.523    0.524    0.000    0.000    0.000    0.000    0.000    0.000    0.000    0.000    0.002    0.001    0.001    0.001    0.001    0.001    0.001   -0.003\n"
+if tmp_line[tmp_line_start_index:].startswith("."):
+    tmp_line_start_index = 71
+
+print(tmp_line_start_index)
