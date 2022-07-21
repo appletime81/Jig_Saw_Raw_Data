@@ -236,11 +236,16 @@ def table_3(content, file_name):  # content = lines
     TABLE_3_PART_DETECT_FLAG = False
     under_line = "----------"
 
-    # print("-----------------------------------------------------")
-    # print(file_name)
-
     # process content
     for line_index, line in enumerate(content):
+        # 處理剩下欄位所需要用到的變數
+        EMPTY_LINE_FLAG = True
+        START_DETECT_SPACE_FLAG = False
+        record_space_list = []
+        item_list = []
+        value_str = ""
+        start_index = 71
+
         # get Package name
         if re.search("Package\W+:\W+", line):
             package_name = line.split(":")[1].split("\\")[1]
@@ -301,54 +306,74 @@ def table_3(content, file_name):  # content = lines
             table_3_dict["Lot_Finished"].append(lot_finished)
 
             # 處理剩下的欄位
-            tmp_line = line[72:]
+            # ---------------------------------------------------------------------------------------
+            # 首先從index 71開使切割字串
+            if len(line) == 1:
+                EMPTY_LINE_FLAG = False
+            tmp_line = line[start_index:]
             tmp_line_list = tmp_line.split("    ")
-            final_tmp_list = []
-            record_empty_str = []
-            for i in range(len(tmp_line_list)):
-                if tmp_line_list[i] == "":
-                    record_empty_str.append("")
-                if len(record_empty_str) % 2 == 0 and len(record_empty_str) != 0:
-                    for _ in range(int(len(record_empty_str) / 2)):
-                        final_tmp_list.append("0")
-                    record_empty_str = []
-                if tmp_line_list[i] != "":
-                    final_tmp_list.append(tmp_line_list[i].strip())
-            if len(final_tmp_list) < len(tmp_col_names[6:]):
-                final_tmp_list.append("0")
+            if EMPTY_LINE_FLAG:
+                try:
+                    if tmp_line_list[0][0] == " ":
+                        start_index += 1
+                        tmp_line = line[start_index:]
+                        tmp_line_list = tmp_line.split("    ")
+                except IndexError:
+                    print("-----start------")
+                    print(file_name)
+                    print(line)
+                    print(tmp_line_list)
+                    print("----- end ------")
+            for i, tmp_str in enumerate(tmp_line):
+                if tmp_str != " ":
+                    value_str += tmp_str
+                    START_DETECT_SPACE_FLAG = False
+                if (len(value_str) == 5 and "-" not in value_str) or (
+                    len(value_str) == 6 and "-" in value_str
+                ):
+                    # print("I am here")
+                    item_list.append(value_str)
+                    # 重置value_str，START_DETECT_SPACE_FLAG為True
+                    value_str = ""
+                    START_DETECT_SPACE_FLAG = True
+                if START_DETECT_SPACE_FLAG and tmp_str == " ":
+                    record_space_list.append(tmp_str)
 
-            # 組成dict
-            # if len(final_tmp_list) != len(tmp_col_names[6:]):
-            #     print(f"line {line_index + 1} have problem")
-            #     print(tmp_col_names[6:])
-            #     print(final_tmp_list)
+                # 計算值與值之間有幾個空格，來判斷有幾個缺失值
+                if not START_DETECT_SPACE_FLAG and i > 0:
+                    no_value_count = int(len(record_space_list) / 9)
+                    for _ in range(no_value_count):
+                        item_list.append("0")
 
-            for key, value in zip(tmp_col_names[6:], final_tmp_list):
-                table_3_dict[key].append(value)
+                    # 重置record_space_list
+                    record_space_list = []
+                for key, value in zip(tmp_col_names[6:], item_list):
+                    table_3_dict[key].append(value)
+            # ---------------------------------------------------------------------------------------
+
             for col_name in list(
                 set(TABLE_3_COL_NAMES[4:])
                 - set(tmp_col_names[6:])
                 - {"NO", "Inspection", "DVNo", "XPos", "YPos", "Item"}
             ):
                 table_3_dict[col_name].append("0")
-            if len(final_tmp_list) != len(tmp_col_names[6:]) and re.search("-\d+\.\d+", line):
-                print("-----------------------------------------------------")
-                print(file_name)
-                print("line {} have problem".format(line_index + 1))
-                print(tmp_col_names[6:])
-                print(tmp_line.split("    "))
-                print(final_tmp_list)
-                print(len(final_tmp_list), len(tmp_col_names[6:]))
-            elif re.search("-\d+\.\d+", line):
-                print("-----------------------------------------------------")
-                print(file_name)
-                print("line {} have problem".format(line_index + 1))
-                print(tmp_col_names[6:])
-                print(tmp_line.split("    "))
-                print(final_tmp_list)
-                print(len(final_tmp_list), len(tmp_col_names[6:]))
 
-
+            # if len(final_tmp_list) != len(tmp_col_names[6:]) and re.search("-\d+\.\d+", line):
+            #     print("-----------------------------------------------------")
+            #     print(file_name)
+            #     print("line {} have problem".format(line_index + 1))
+            #     print(tmp_col_names[6:])
+            #     print(tmp_line.split("    "))
+            #     print(final_tmp_list)
+            #     print(len(final_tmp_list), len(tmp_col_names[6:]))
+            # elif re.search("-\d+\.\d+", line):
+            #     print("-----------------------------------------------------")
+            #     print(file_name)
+            #     print("line {} have problem".format(line_index + 1))
+            #     print(tmp_col_names[6:])
+            #     print(tmp_line.split("    "))
+            #     print(final_tmp_list)
+            #     print(len(final_tmp_list), len(tmp_col_names[6:]))
 
 
 if __name__ == "__main__":
@@ -427,8 +452,6 @@ if __name__ == "__main__":
         table_3(lines, txt_file)
         table_1(lines)
         table_2(lines)
-
-
 
     df_1 = pd.DataFrame(table_1_dict)
     df_2 = pd.DataFrame(table_2_dict)
