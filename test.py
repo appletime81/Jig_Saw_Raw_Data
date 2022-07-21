@@ -1,12 +1,27 @@
-import re
-from pprint import pprint
-
-with open("2022-06-25_21;28;21.txt", "r") as f:
+with open("test.txt", "r") as f:
     lines = f.readlines()
 
-tmp_line_start_index = 72
-tmp_line = "  10473  2022-06-25 22:13:57   17   10    15    Terminal Dimension      4.890    3.584    0.526             0.523    0.524    0.000    0.000    0.000    0.000    0.000    0.000    0.000    0.000    0.002    0.001    0.001    0.001    0.001    0.001    0.001   -0.003\n"
-if tmp_line[tmp_line_start_index:].startswith("."):
-    tmp_line_start_index = 71
+for line in lines:
+    # 首先從index 71開使切割字串
+    EMPTY_LINE_FLAG = True
+    record_space_list = []
+    item_list = []
+    value_str = ""
+    if len(line) == 1:
+        EMPTY_LINE_FLAG = False
+    start_index = 71
+    tmp_line = line[start_index:]
+    tmp_line_list = tmp_line.split("    ")
+    if EMPTY_LINE_FLAG:
+        if tmp_line_list[0][0] == " ":
+            start_index += 1
+            tmp_line = line[start_index:]
+            tmp_line_list = tmp_line.split("    ")
 
-print(tmp_line_start_index)
+    for i, tmp_str in enumerate(tmp_line_list):
+        if tmp_str != " ":
+            value_str += tmp_str
+        if len(value_str) == 5:
+            value_str = ""
+
+
