@@ -14,11 +14,13 @@ for line in lines:
     tmp_line = line[start_index:]
     tmp_line_list = tmp_line.split("    ")
     if EMPTY_LINE_FLAG:
-        if tmp_line_list[0][0] == " ":
-            start_index += 1
-            tmp_line = line[start_index:]
-            tmp_line_list = tmp_line.split("    ")
-    print(tmp_line.strip())
+        try:
+            if tmp_line_list[0][0] == " ":
+                start_index += 1
+                tmp_line = line[start_index:]
+                tmp_line_list = tmp_line.split("    ")
+        except IndexError:
+            START_DETECT_SPACE_FLAG = True
     for i, tmp_str in enumerate(tmp_line):
         if tmp_str != " ":
             value_str += tmp_str
@@ -26,7 +28,6 @@ for line in lines:
         if (len(value_str) == 5 and "-" not in value_str) or (
             len(value_str) == 6 and "-" in value_str
         ):
-            # print("I am here")
             item_list.append(value_str)
             # 重置value_str，START_DETECT_SPACE_FLAG為True
             value_str = ""
@@ -43,4 +44,3 @@ for line in lines:
             # 重置record_space_list
             record_space_list = []
     print(item_list, len(item_list))
-

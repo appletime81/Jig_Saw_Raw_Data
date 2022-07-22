@@ -235,6 +235,7 @@ def table_3(content, file_name):  # content = lines
     global table_3_dict
     TABLE_3_PART_DETECT_FLAG = False
     under_line = "----------"
+    print(file_name)
 
     # process content
     for line_index, line in enumerate(content):
@@ -317,13 +318,8 @@ def table_3(content, file_name):  # content = lines
                     if tmp_line_list[0][0] == " ":
                         start_index += 1
                         tmp_line = line[start_index:]
-                        tmp_line_list = tmp_line.split("    ")
                 except IndexError:
-                    print("-----start------")
-                    print(file_name)
-                    print(line)
-                    print(tmp_line_list)
-                    print("----- end ------")
+                    START_DETECT_SPACE_FLAG = True
             for i, tmp_str in enumerate(tmp_line):
                 if tmp_str != " ":
                     value_str += tmp_str
@@ -347,33 +343,15 @@ def table_3(content, file_name):  # content = lines
 
                     # 重置record_space_list
                     record_space_list = []
-                for key, value in zip(tmp_col_names[6:], item_list):
-                    table_3_dict[key].append(value)
+            for key, value in zip(tmp_col_names[6:], item_list):
+                table_3_dict[key].append(value)
             # ---------------------------------------------------------------------------------------
-
             for col_name in list(
                 set(TABLE_3_COL_NAMES[4:])
                 - set(tmp_col_names[6:])
                 - {"NO", "Inspection", "DVNo", "XPos", "YPos", "Item"}
             ):
                 table_3_dict[col_name].append("0")
-
-            # if len(final_tmp_list) != len(tmp_col_names[6:]) and re.search("-\d+\.\d+", line):
-            #     print("-----------------------------------------------------")
-            #     print(file_name)
-            #     print("line {} have problem".format(line_index + 1))
-            #     print(tmp_col_names[6:])
-            #     print(tmp_line.split("    "))
-            #     print(final_tmp_list)
-            #     print(len(final_tmp_list), len(tmp_col_names[6:]))
-            # elif re.search("-\d+\.\d+", line):
-            #     print("-----------------------------------------------------")
-            #     print(file_name)
-            #     print("line {} have problem".format(line_index + 1))
-            #     print(tmp_col_names[6:])
-            #     print(tmp_line.split("    "))
-            #     print(final_tmp_list)
-            #     print(len(final_tmp_list), len(tmp_col_names[6:]))
 
 
 if __name__ == "__main__":
