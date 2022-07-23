@@ -235,7 +235,7 @@ def table_3(content, file_name):  # content = lines
     global table_3_dict
     TABLE_3_PART_DETECT_FLAG = False
     under_line = "----------"
-    print(file_name)
+    # print(file_name)
 
     # process content
     for line_index, line in enumerate(content):
@@ -282,11 +282,6 @@ def table_3(content, file_name):  # content = lines
             and TABLE_3_PART_DETECT_FLAG
             and len(line) > 1
         ):
-            # if re.search("-\d+\.\d+", line):
-            #     print(file_name)
-            #     print(line_index + 1)
-            #     print(line.strip())
-
             # 處理欄位名稱("NO", "Inspection", "DVNo", "XPos", "YPos", "Item")
             tmp_line = line[:72].strip()
             first_6_col_item_list = [x for x in tmp_line.split(" ") if x != ""]
@@ -306,8 +301,7 @@ def table_3(content, file_name):  # content = lines
             table_3_dict["Lot_Started"].append(lot_started)
             table_3_dict["Lot_Finished"].append(lot_finished)
 
-            # 處理剩下的欄位
-            # ---------------------------------------------------------------------------------------
+            # ----------------------------處理剩下的欄位--------------------------------------
             # 首先從index 71開使切割字串
             if len(line) == 1:
                 EMPTY_LINE_FLAG = False
@@ -327,7 +321,6 @@ def table_3(content, file_name):  # content = lines
                 if (len(value_str) == 5 and "-" not in value_str) or (
                     len(value_str) == 6 and "-" in value_str
                 ):
-                    # print("I am here")
                     item_list.append(value_str)
                     # 重置value_str，START_DETECT_SPACE_FLAG為True
                     value_str = ""
@@ -443,8 +436,13 @@ if __name__ == "__main__":
         sorted(tmp_table_3_dict.items(), key=lambda x: x[0])
     )
     table_3_dict = {**first_part_table_3_dict, **tmp_table_3_dict}
-    for k, v in table_3_dict.items():
-        print(k, len(v))
+    # ---------------------------------------------------------
+    # save table_3_dict to json file
+    with open("table_3_dict.json", "w") as f:
+        json.dump(table_3_dict, f, indent=4)
+
+    # for k, v in table_3_dict.items():
+    #     print(k, len(v))
 
     # 如果Table3行數超過1048576，則分成多個Excel檔
     if len(table_3_dict["Package"]) > 1048576:
@@ -454,7 +452,24 @@ if __name__ == "__main__":
             else int(len(table_3_dict["Package"]) / 1048576) + 1
         )
         part_numbers_list = list(range(part_numbers))
-        print(part_numbers_list)
+        # print(part_numbers_list)
+        for part_number in part_numbers_list:
+            table_3_dict_copy = copy.deepcopy(table_3_dict)
+            for key, value in table_3_dict_copy.items():
+                table_3_dict_copy[key] = value[
+                    part_number * 1048576 : (part_number + 1) * 1048576
+                ]
+            df_3 = pd.DataFrame(table_3_dict_copy)
+            print(f"Processing part {part_number + 1}")
+            start_save_table_3_dict_time = time.time()
+            df_3.to_excel(
+                excel_writer=f"Golden_Output_Table_3_part{part_number + 1}.xlsx",
+                sheet_name="Table3",
+                index=False,
+            )
+            print(
+                f"Processing part {part_number + 1} done !!!\nUsing {time.time() - start_save_table_3_dict_time} seconds."
+            )
     else:
         df_3 = pd.DataFrame(table_3_dict)
         df_3.to_excel(
@@ -462,21 +477,6 @@ if __name__ == "__main__":
             sheet_name="Table3",
             index=False,
         )
-
-    for part_number in part_numbers_list:
-        table_3_dict_copy = copy.deepcopy(table_3_dict)
-        for key, value in table_3_dict_copy.items():
-            table_3_dict_copy[key] = value[
-                part_number * 1048576 : (part_number + 1) * 1048576
-            ]
-        df_3 = pd.DataFrame(table_3_dict_copy)
-        print(f"Processing part {part_number + 1}")
-        df_3.to_excel(
-            excel_writer=f"Golden_Output_Table_3_part{part_number + 1}.xlsx",
-            sheet_name="Table3",
-            index=False,
-        )
-        print(f"Processing part {part_number + 1} done !!!")
 
     df_1.to_excel(
         excel_writer="Golden_Output_Table_1.xlsx",
@@ -498,4 +498,4 @@ if __name__ == "__main__":
     with open("no_value_dict.json", "w") as f:
         json.dump(no_value_dict, f, indent=4)
 
-    print("%s seconds" % (time.time() - start_time))
+    print("Total processing time: %s seconds" % (time.time() - start_time))
