@@ -1,3 +1,4 @@
+# main.py
 import os
 import re
 import time
@@ -285,15 +286,24 @@ def table_3(content, file_name):  # content = lines
             # 處理欄位名稱("NO", "Inspection", "DVNo", "XPos", "YPos", "Item")
             tmp_line = line[:72].strip()
             first_6_col_item_list = [x for x in tmp_line.split(" ") if x != ""]
+            # first_6_col_item_list_copy = first_6_col_item_list.copy()
+            if first_6_col_item_list[len(first_6_col_item_list) - 1].isdigit():
+                first_6_col_item_list.pop(len(first_6_col_item_list) - 1)
+            if len(first_6_col_item_list) == 9:
+                first_6_col_item_list[1] += " " + first_6_col_item_list.pop(2)
+                first_6_col_item_list[5] += " " + first_6_col_item_list.pop(6)
             if len(first_6_col_item_list) == 8:
                 first_6_col_item_list[1] += " " + first_6_col_item_list.pop(2)
                 first_6_col_item_list[5] += " " + first_6_col_item_list.pop(6)
             if len(first_6_col_item_list) == 7:
                 first_6_col_item_list[1] += " " + first_6_col_item_list.pop(2)
+
             for key, value in zip(
                 ["NO", "Inspection", "DVNo", "XPos", "YPos", "Item"],
                 first_6_col_item_list,
             ):
+                # if value == "14" and key == "Item":
+                #     print(first_6_col_item_list_copy)
                 table_3_dict[key].append(value)
 
             table_3_dict["Package"].append(package_name)
@@ -393,6 +403,7 @@ if __name__ == "__main__":
         "MAX-MIN",
         "CPK",
     ]
+
     # ------------------------- 組合Table 3的欄位名稱 -------------------------
     TABLE_3_COL_NAMES = ["Package", "Lot_No", "Lot_Started", "Lot_Finished"]
     table_3_sub_col_names = detect_table_3_col_names(all_txt_files=txt_files)
@@ -427,6 +438,7 @@ if __name__ == "__main__":
     df_1 = pd.DataFrame(table_1_dict)
     df_2 = pd.DataFrame(table_2_dict)
 
+    # ---------------------- 儲存table3 -------------------------------------
     # 排序table_3_dict
     tmp_table_3_dict = copy.deepcopy(table_3_dict)
     first_part_table_3_dict = {}
@@ -436,20 +448,14 @@ if __name__ == "__main__":
         sorted(tmp_table_3_dict.items(), key=lambda x: x[0])
     )
     table_3_dict = {**first_part_table_3_dict, **tmp_table_3_dict}
-    # ---------------------------------------------------------
-    # save table_3_dict to json file
-    with open("table_3_dict.json", "w") as f:
-        json.dump(table_3_dict, f, indent=4)
-
-    # for k, v in table_3_dict.items():
-    #     print(k, len(v))
 
     # 如果Table3行數超過1048576，則分成多個Excel檔
-    if len(table_3_dict["Package"]) > 1048576:
+    MAX_ROWS = 1048575
+    if len(table_3_dict["Package"]) > MAX_ROWS:
         part_numbers = (
-            int(len(table_3_dict["Package"]) / 1048576)
-            if not len(table_3_dict["Package"]) % 1048576
-            else int(len(table_3_dict["Package"]) / 1048576) + 1
+            int(len(table_3_dict["Package"]) / MAX_ROWS)
+            if not len(table_3_dict["Package"]) % MAX_ROWS
+            else int(len(table_3_dict["Package"]) / MAX_ROWS) + 1
         )
         part_numbers_list = list(range(part_numbers))
         # print(part_numbers_list)
@@ -457,7 +463,7 @@ if __name__ == "__main__":
             table_3_dict_copy = copy.deepcopy(table_3_dict)
             for key, value in table_3_dict_copy.items():
                 table_3_dict_copy[key] = value[
-                    part_number * 1048576 : (part_number + 1) * 1048576
+                    part_number * MAX_ROWS : (part_number + 1) * MAX_ROWS
                 ]
             df_3 = pd.DataFrame(table_3_dict_copy)
             print(f"Processing part {part_number + 1}")
@@ -477,6 +483,7 @@ if __name__ == "__main__":
             sheet_name="Table3",
             index=False,
         )
+    # -----------------------------------------------------------------------
 
     df_1.to_excel(
         excel_writer="Golden_Output_Table_1.xlsx",
@@ -495,7 +502,7 @@ if __name__ == "__main__":
     #     os.remove(txt_file)
 
     # save dict to json
-    with open("no_value_dict.json", "w") as f:
-        json.dump(no_value_dict, f, indent=4)
+    # with open("no_value_dict.json", "w") as f:
+    #     json.dump(no_value_dict, f, indent=4)
 
     print("Total processing time: %s seconds" % (time.time() - start_time))
