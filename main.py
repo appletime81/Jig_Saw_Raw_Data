@@ -1,6 +1,7 @@
 # main.py
 import os
 import re
+import sys
 import time
 import json
 import copy
@@ -8,6 +9,7 @@ import collections
 import pandas as pd
 
 from glob import glob
+from pprint import pprint
 
 
 def get_all_txtx_files(current_path):
@@ -221,12 +223,11 @@ def detect_table_3_col_names(all_txt_files):
     for file in all_txt_files:
         with open(file, "r") as f:
             content = f.readlines()
-
-    for line in content:
-        if line.startswith("    NO  Inspection"):
-            col_names += [
-                item.strip() for item in line.strip().split(" ") if item.strip() != ""
-            ]
+        for line in content:
+            if line.startswith("    NO  Inspection"):
+                col_names += [
+                    item.strip() for item in line.strip().split(" ") if item.strip() != ""
+                ]
     return list(set(col_names))
 
 
@@ -269,7 +270,9 @@ def table_3(content, file_name):  # content = lines
             tmp_col_names = [
                 item.strip() for item in line.strip().split(" ") if item.strip() != ""
             ]
-
+            tmp_col_names_copy = tmp_col_names.copy()
+            # line copy
+            tmp_col_name_line_copy = line.strip()
             if "PkgSize(X/Y)" in tmp_col_names:
                 pkg_size_x_index = tmp_col_names.index("PkgSize(X/Y)")
                 pkg_size_y_index = tmp_col_names.index("PkgSize(X/Y)") + 1
@@ -347,7 +350,16 @@ def table_3(content, file_name):  # content = lines
                     # 重置record_space_list
                     record_space_list = []
             for key, value in zip(tmp_col_names[6:], item_list):
-                table_3_dict[key].append(value)
+                try:
+                    table_3_dict[key].append(value)
+                except KeyError:
+                    print("-----------------------------------------------------")
+                    print("file name:", file_name)
+                    print("key:", key)
+                    print(tmp_col_name_line_copy)
+                    pprint(tmp_col_names_copy)
+                    # 停止程式
+                    sys.exit()
             # ---------------------------------------------------------------------------------------
             for col_name in list(
                 set(TABLE_3_COL_NAMES[4:])
@@ -407,6 +419,8 @@ if __name__ == "__main__":
     # ------------------------- 組合Table 3的欄位名稱 -------------------------
     TABLE_3_COL_NAMES = ["Package", "Lot_No", "Lot_Started", "Lot_Finished"]
     table_3_sub_col_names = detect_table_3_col_names(all_txt_files=txt_files)
+    print("----------- table_3_sub_col_names ------------")
+    print(table_3_sub_col_names)
     # sort table_3_sub_col_names by first alphabet
     table_3_sub_col_names.sort(key=lambda x: x[0])
 
@@ -505,4 +519,4 @@ if __name__ == "__main__":
     # with open("no_value_dict.json", "w") as f:
     #     json.dump(no_value_dict, f, indent=4)
 
-    print("Total processing time: %s seconds" % (time.time() - start_time))
+    print("Total processing time: %s seconds." % (time.time() - start_time))
