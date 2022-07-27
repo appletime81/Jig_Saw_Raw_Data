@@ -226,7 +226,9 @@ def detect_table_3_col_names(all_txt_files):
         for line in content:
             if line.startswith("    NO  Inspection"):
                 col_names += [
-                    item.strip() for item in line.strip().split(" ") if item.strip() != ""
+                    item.strip()
+                    for item in line.strip().split(" ")
+                    if item.strip() != ""
                 ]
     return list(set(col_names))
 
